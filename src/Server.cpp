@@ -11,12 +11,9 @@
 
 using namespace std;
 
-ostream& writeString(ostream& out, string const& s)
-{
-    for ( auto ch : s )
-    {
-        switch (ch)
-        {
+ostream &writeString(ostream &out, string const &s) {
+    for (auto ch: s) {
+        switch (ch) {
             case '\'':
                 out << "\\'";
                 break;
@@ -122,33 +119,44 @@ int main(int argc, char **argv) {
 
     char *inBuffer = new char[64];
 
-    ssize_t currReadLen;
-    ssize_t readLen = 0;
-    int msg = 0;
+    while (true) {
+        ssize_t currReadLen;
+        ssize_t readLen = 0;
+        int msg = 0;
 
-    do {
-        currReadLen = recv(client_fd, inBuffer + readLen, 64 - readLen, 0);
-        if (currReadLen < 0) {
-            cerr << "read failed " << strerror(errno) <<"\n";
-            return 1;
+        do {
+            currReadLen = recv(client_fd, inBuffer + readLen, 64 - readLen, 0);
+            if (currReadLen < 0) {
+                cerr << "read failed " << strerror(errno) << "\n";
+                return 1;
+            } else if (currReadLen == 0) {
+                // client disconnected, keeping msg=0
+                break;
+            }
+            readLen += currReadLen;
+            inBuffer[readLen] = 0;
+
+            if (strcmp(inBuffer, "*1\r\n$4\r\nping\r\n") == 0) {
+                msg = 1;
+                break;
+            }
+
+        } while (readLen < 64);
+
+        if(msg == 0) { // msg==0 means client disconnected
+                break;
         }
-        readLen += currReadLen;
-        inBuffer[readLen] = 0;
 
-        if(strcmp(inBuffer, "*1\r\n$4\r\nping\r\n") == 0) {
-            msg = 1;
-            break;
+        cout << "received msg " << msg << ": ";
+        writeString(cout, string(inBuffer));
+        cout << endl;
+
+        inBuffer[0] = 0;
+
+        if (msg == 1) {
+            const char *resp = "+PONG\r\n";
+            send(client_fd, resp, strlen(resp), 0);
         }
-
-    } while (currReadLen > 0 && readLen < 64);
-
-    cout << "received msg " << msg << ": ";
-    writeString(cout, string(inBuffer));
-    cout << endl;
-
-    if(msg == 1) {
-        const char *resp = "+PONG\r\n";
-        send(client_fd, resp, strlen(resp), 0);
     }
 
     close(server_fd);
