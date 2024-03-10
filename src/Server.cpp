@@ -66,6 +66,8 @@ ostream &writeString(ostream &out, string const &s) {
     return out;
 }
 
+int serveClient(int client_fd);
+
 int main(int argc, char **argv) {
     // You can use print statements as follows for debugging, they'll be visible when running tests.
     cout << "Logs from your program will appear here!\n";
@@ -109,14 +111,39 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    struct sockaddr_in client_addr;
-    int client_addr_len = sizeof(client_addr);
+    while(true) {
+        struct sockaddr_in client_addr;
+        int client_addr_len = sizeof(client_addr);
 
-    cout << "Waiting for a client to connect...\n";
 
-    int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
-    cout << "Client connected\n";
+        cout << "Waiting for a client to connect...\n";
 
+        int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
+        cout << "Client connected\n";
+
+        int pid = fork();
+
+        if(pid == 0) {
+            // I am a child!
+            close(server_fd);
+
+            serveClient(client_fd);
+
+            cout << "Client disconnected\n";
+            return 0; // die
+        }
+
+    }
+
+
+
+    close(server_fd);
+
+    return 0;
+}
+
+
+int serveClient(int client_fd) {
     char *inBuffer = new char[64];
 
     while (true) {
@@ -144,7 +171,7 @@ int main(int argc, char **argv) {
         } while (readLen < 64);
 
         if(msg == 0) { // msg==0 means client disconnected
-                break;
+            break;
         }
 
         cout << "received msg " << msg << ": ";
@@ -159,9 +186,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    close(server_fd);
+    close(client_fd);
 
     delete[] inBuffer;
-
-    return 0;
 }
