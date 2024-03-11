@@ -10,4 +10,9 @@ set(SOURCE_FILES src/Server.cpp
         src/RespSerializer.cpp
         src/RespSerializer.h)
 
+
 add_executable(server ${SOURCE_FILES})
+
+TARGET_LINK_LIBRARIES(server
+        pthread
+)
