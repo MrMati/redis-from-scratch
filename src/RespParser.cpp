@@ -18,9 +18,7 @@ RespValue *RespParser::parseBulkString(stringstream &ss) {
     ss >> str;
     checkSeparator(ss);
 
-    auto *val = new RespValue(RespValue::Type::BulkString);
-    val->string_value = str;
-
+    auto *val = new RespValue(RespValue::Type::BulkString, str);
     return val;
 }
 
@@ -29,16 +27,15 @@ RespValue *RespParser::parseArray(stringstream &ss) {
     ss >> elementAmount;
     checkSeparator(ss);
 
-    auto elements = new vector<RespValue>;
+    vector<RespValue> elements;
+    cout << "pies\n";
 
     for (int i = 0; i < elementAmount; i++) {
         auto element = parseCmd(ss);
-        elements->push_back(*element);
+        elements.push_back(*element);
     }
 
-    auto val = new RespValue(RespValue::Type::Array);
-    val->array_value = *elements;
-
+    auto val = new RespValue(RespValue::Type::Array, elements);
     return val;
 }
 
@@ -56,7 +53,7 @@ RespValue *RespParser::parseCmd(stringstream &ss) {
             cmd = parseBulkString(ss);
             break;
         default:
-            cmd = new RespValue(RespValue::Type::Invalid);
+            cmd = new RespValue();
             cout << "Message type " << firstChar << " unsupported\n";
             break;
     }

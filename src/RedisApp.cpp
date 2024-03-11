@@ -86,11 +86,11 @@ string RedisApp::cmdHandler(RespValue *cmd) {
         cmd->array_value[0].string_value == "echo") {
         return echoHandler(cmd->array_value[1].string_value);
     }
-    if (cmd->array_value.size() == 2 &&
+    if (cmd->array_value.size() >= 2 &&
         cmd->array_value[0].string_value == "get") {
         return getHandler(cmd->array_value[1].string_value);
     }
-    if (cmd->array_value.size() == 3 &&
+    if (cmd->array_value.size() >= 3 &&
         cmd->array_value[0].string_value == "set") {
         return setHandler(cmd->array_value[1].string_value, cmd->array_value[2].string_value);
     }
@@ -102,20 +102,18 @@ int RedisApp::start() {
     int server_fd = createListener();
     if (server_fd < 0) return server_fd;
 
+    cout << "Server started\n";
+
     struct sockaddr_in client_addr;
     int client_addr_len = sizeof(client_addr);
 
     while (true) {
-        cout << "Waiting for a client to connect...\n";
-
         int client_fd = accept(server_fd, (struct sockaddr *) &client_addr, (socklen_t *) &client_addr_len);
         cout << "Client connected\n";
 
         thread t = thread(&RedisApp::handleClient, this, client_fd);
         t.detach();
-
     }
-
     close(server_fd);
 }
 

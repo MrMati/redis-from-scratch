@@ -9,12 +9,22 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <poll.h>
+#include <utility>
 #include <vector>
 #include <thread>
 #include <map>
 
 #include "RespParser.h"
 #include "RespSerializer.h"
+
+
+struct RedisValue {
+    string value;
+    time_t expiryTime;
+
+    RedisValue(string val, time_t expiry) : value(std::move(val)), expiryTime(expiry) {}
+};
+
 
 class RedisApp {
 public:

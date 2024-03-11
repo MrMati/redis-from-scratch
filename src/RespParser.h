@@ -16,7 +16,19 @@ struct RespValue {
         Array
     };
 
-    explicit RespValue(Type type) : type(type) {}
+    explicit RespValue() : type(Type::Invalid) {
+        cout << "RespValue created\n";
+    }
+    explicit RespValue(Type type, string val) : type(type), string_value(std::move(val)) {
+        cout << "RespValue created\n";
+    }
+    explicit RespValue(Type type, vector<RespValue> &vec) : type(type), array_value(std::move(vec)) {
+        cout << "RespValue created\n";
+    }
+
+    ~RespValue() {
+        cout << "RespValue ded\n";
+    }
 
     Type type;
 
