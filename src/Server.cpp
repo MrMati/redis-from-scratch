@@ -7,7 +7,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <poll.h>
 #include <netdb.h>
+#include <vector>
 
 using namespace std;
 
@@ -68,10 +70,120 @@ ostream &writeString(ostream &out, string const &s) {
 
 int serveClient(int client_fd);
 
-int main(int argc, char **argv) {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    cout << "Logs from your program will appear here!\n";
 
+void checkSeparator(stringstream &ss) {
+    char temp[2];
+
+    ss.read(temp, 2);
+    if (strcmp(temp, "\r\n") != 0) {
+        cout << "expected \\r\\n DO SOMETHING ABOUT IT!\n";
+    }
+}
+
+struct RespValue {
+    enum class Type {
+        Invalid,
+        BulkString,
+        Array
+    };
+
+    explicit RespValue(Type type) : type(type) {}
+
+    Type type;
+
+    string string_value;
+    vector<RespValue> array_value;
+};
+
+RespValue *parseCmd(stringstream &ss);
+
+RespValue *parseBulkString(stringstream &ss) {
+    int len;
+    ss >> len;
+    checkSeparator(ss);
+
+    string str;
+    ss >> str;
+    checkSeparator(ss);
+
+    auto *val = new RespValue(RespValue::Type::BulkString);
+    val->string_value = str;
+
+    return val;
+}
+
+RespValue *parseArray(stringstream &ss) {
+    int elementAmount;
+    ss >> elementAmount;
+    checkSeparator(ss);
+
+    auto elements = new vector<RespValue>;
+
+    for (int i = 0; i < elementAmount; i++) {
+        auto element = parseCmd(ss);
+        elements->push_back(*element);
+    }
+
+    auto val = new RespValue(RespValue::Type::Array);
+    val->array_value = *elements;
+
+    return val;
+}
+
+RespValue *parseCmd(stringstream &ss) {
+    char firstChar;
+    ss >> firstChar;
+
+    RespValue *cmd;
+
+    switch (firstChar) {
+        case '*':
+            cmd = parseArray(ss);
+            break;
+        case '$':
+            cmd = parseBulkString(ss);
+            break;
+        default:
+            cout << "Message type " << firstChar << " unsupported\n";
+    }
+
+    return cmd;
+}
+
+string cmdHandler(RespValue *cmd) {
+    if (cmd->type == RespValue::Type::Array &&
+        cmd->array_value.size() == 1 &&
+        cmd->array_value[0].string_value == "ping") {
+        return {"+PONG\r\n"};
+    }
+    if (cmd->type == RespValue::Type::Array &&
+        cmd->array_value.size() == 2 &&
+        cmd->array_value[0].string_value == "echo") {
+        auto echoStr = cmd->array_value[1].string_value;
+        stringstream retSS;
+        retSS << "$";
+        retSS << echoStr.size();
+        retSS << "\r\n";
+        retSS << echoStr;
+        retSS << "\r\n";
+
+        return retSS.str();
+    }
+
+    return {};
+}
+
+void testParser() {
+    //const char *cmdStr = "*1\r\n$4\r\nping\r\n";
+    const char *cmdStr = "*2\r\n$4\r\necho\r\n$3\r\nhey\r\n";
+    stringstream ss(cmdStr);
+    auto cmd = parseCmd(ss);
+    auto response = cmdHandler(cmd);
+    cout << response << endl;
+}
+
+int main(int argc, char **argv) {
+    //testParser();
 
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
@@ -87,13 +199,6 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    /*struct timeval t;
-    t.tv_sec = 0;
-    t.tv_usec = 0;
-    if (setsockopt(server_fd, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t))) {
-        cerr << "setsockopt failed\n";
-        return 1;
-    }*/
 
     struct sockaddr_in server_addr;
     server_addr.sin_family = AF_INET;
@@ -111,10 +216,9 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    while(true) {
+    while (true) {
         struct sockaddr_in client_addr;
         int client_addr_len = sizeof(client_addr);
-
 
         cout << "Waiting for a client to connect...\n";
 
@@ -123,7 +227,7 @@ int main(int argc, char **argv) {
 
         int pid = fork();
 
-        if(pid == 0) {
+        if (pid == 0) {
             // I am a child!
             close(server_fd);
 
@@ -135,10 +239,7 @@ int main(int argc, char **argv) {
 
     }
 
-
-
     close(server_fd);
-
     return 0;
 }
 
@@ -146,47 +247,56 @@ int main(int argc, char **argv) {
 int serveClient(int client_fd) {
     char *inBuffer = new char[64];
 
-    while (true) {
+    struct pollfd fd;
+    fd.fd = client_fd;
+    fd.events = POLLIN;
+
+    while (true) { // conn loop
         ssize_t currReadLen;
         ssize_t readLen = 0;
-        int msg = 0;
 
-        do {
+        do { // msgStr loop
+            if (readLen > 0) {
+                int pollRet = poll(&fd, 1, 1);
+                if (pollRet == -1) {
+                    return 1; // socket closed
+                } else if (pollRet == 0) {
+                    break; // end of connection
+                }
+            }
             currReadLen = recv(client_fd, inBuffer + readLen, 64 - readLen, 0);
             if (currReadLen < 0) {
                 cerr << "read failed " << strerror(errno) << "\n";
-                return 1;
+                return 1; // socket closed
             } else if (currReadLen == 0) {
-                // client disconnected, keeping msg=0
-                break;
+                break; // end of connection
             }
             readLen += currReadLen;
             inBuffer[readLen] = 0;
-
-            if (strcmp(inBuffer, "*1\r\n$4\r\nping\r\n") == 0) {
-                msg = 1;
-                break;
-            }
-
         } while (readLen < 64);
 
-        if(msg == 0) { // msg==0 means client disconnected
+        if (readLen == 0) {
             break;
         }
 
-        cout << "received msg " << msg << ": ";
-        writeString(cout, string(inBuffer));
+        string msgStr = string(inBuffer);
+
+        cout << "received msgStr: ";
+        writeString(cout, msgStr);
         cout << endl;
 
-        inBuffer[0] = 0;
+        auto ss = stringstream(msgStr);
+        auto msg = parseCmd(ss);
+        auto response = cmdHandler(msg);
+        cout << "response: ";
+        writeString(cout, response);
+        cout << endl;
 
-        if (msg == 1) {
-            const char *resp = "+PONG\r\n";
-            send(client_fd, resp, strlen(resp), 0);
-        }
+        send(client_fd, response.c_str(), response.size(), 0);
+
     }
 
     close(client_fd);
-
     delete[] inBuffer;
+    return 0;
 }
