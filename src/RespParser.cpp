@@ -1,7 +1,7 @@
 #include "RespParser.h"
 
 void RespParser::checkSeparator(stringstream &ss) {
-    char temp[2];
+    char temp[3]{};
     ss.read(temp, 2);
     if (strcmp(temp, "\r\n") != 0) {
         cout << "expected \\r\\n DO SOMETHING ABOUT IT!\n";
