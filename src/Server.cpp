@@ -14,10 +14,8 @@ void testParser() {
     auto app = RedisApp();
 
     auto cmd = parser.parseCmd(ss);
-    auto response = app.cmdHandler(cmd);
+    auto response = app.cmdHandler(std::move(cmd));
     cout << response << endl;
-
-    //delete cmd;
 }
 
 int main(int argc, char **argv) {

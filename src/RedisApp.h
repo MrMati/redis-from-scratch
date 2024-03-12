@@ -28,7 +28,7 @@ struct RedisValue {
 
 class RedisApp {
 public:
-    string cmdHandler(RespValue *cmd);
+    string cmdHandler(unique_ptr<RespValue> cmd);
 
     int start();
 

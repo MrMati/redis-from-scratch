@@ -6,6 +6,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstring>
+#include <memory>
 
 using namespace std;
 
@@ -19,10 +20,12 @@ struct RespValue {
     explicit RespValue() : type(Type::Invalid) {
         cout << "RespValue created\n";
     }
+
     explicit RespValue(Type type, string val) : type(type), string_value(std::move(val)) {
         cout << "RespValue created\n";
     }
-    explicit RespValue(Type type, vector<RespValue> &vec) : type(type), array_value(std::move(vec)) {
+
+    explicit RespValue(Type type, unique_ptr<vector<unique_ptr<RespValue>>> vec) : type(type), array_value(std::move(vec)) {
         cout << "RespValue created\n";
     }
 
@@ -33,20 +36,20 @@ struct RespValue {
     Type type;
 
     string string_value;
-    vector<RespValue> array_value;
+    unique_ptr<vector<unique_ptr<RespValue>>> array_value;
 };
 
 
 class RespParser {
 public:
-    RespValue *parseCmd(stringstream &ss);
+    unique_ptr<RespValue> parseCmd(stringstream &ss);
 
 private:
     void checkSeparator(stringstream &ss);
 
-    RespValue *parseBulkString(stringstream &ss);
+    unique_ptr<RespValue> parseBulkString(stringstream &ss);
 
-    RespValue *parseArray(stringstream &ss);
+    unique_ptr<RespValue> parseArray(stringstream &ss);
 
 
 };

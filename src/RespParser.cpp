@@ -9,7 +9,7 @@ void RespParser::checkSeparator(stringstream &ss) {
 }
 
 
-RespValue *RespParser::parseBulkString(stringstream &ss) {
+unique_ptr<RespValue> RespParser::parseBulkString(stringstream &ss) {
     int len;
     ss >> len;
     checkSeparator(ss);
@@ -18,32 +18,29 @@ RespValue *RespParser::parseBulkString(stringstream &ss) {
     ss >> str;
     checkSeparator(ss);
 
-    auto *val = new RespValue(RespValue::Type::BulkString, str);
-    return val;
+    return make_unique<RespValue>(RespValue::Type::BulkString, str);
 }
 
-RespValue *RespParser::parseArray(stringstream &ss) {
+unique_ptr<RespValue> RespParser::parseArray(stringstream &ss) {
     int elementAmount;
     ss >> elementAmount;
     checkSeparator(ss);
 
-    vector<RespValue> elements;
-    cout << "pies\n";
+    auto elements = make_unique<vector<unique_ptr<RespValue>>>();
 
     for (int i = 0; i < elementAmount; i++) {
         auto element = parseCmd(ss);
-        elements.push_back(*element);
+        elements->push_back(std::move(element));
     }
 
-    auto val = new RespValue(RespValue::Type::Array, elements);
-    return val;
+    return make_unique<RespValue>(RespValue::Type::Array, std::move(elements));
 }
 
-RespValue *RespParser::parseCmd(stringstream &ss) {
+unique_ptr<RespValue> RespParser::parseCmd(stringstream &ss) {
     char firstChar;
     ss >> firstChar;
 
-    RespValue *cmd;
+    unique_ptr<RespValue> cmd;
 
     switch (firstChar) {
         case '*':
@@ -53,7 +50,7 @@ RespValue *RespParser::parseCmd(stringstream &ss) {
             cmd = parseBulkString(ss);
             break;
         default:
-            cmd = new RespValue();
+            cmd = make_unique<RespValue>();
             cout << "Message type " << firstChar << " unsupported\n";
             break;
     }

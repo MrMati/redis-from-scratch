@@ -75,24 +75,24 @@ string RedisApp::setHandler(string &key, string &value) {
     return serialize.OK;
 }
 
-string RedisApp::cmdHandler(RespValue *cmd) {
+string RedisApp::cmdHandler(unique_ptr<RespValue> cmd) {
     if (cmd->type != RespValue::Type::Array) return {};
 
-    if (cmd->array_value.size() == 1 &&
-        cmd->array_value[0].string_value == "ping") {
+    if (cmd->array_value->size() == 1 &&
+            cmd->array_value->at(0)->string_value == "ping") {
         return {"+PONG\r\n"};
     }
-    if (cmd->array_value.size() == 2 &&
-        cmd->array_value[0].string_value == "echo") {
-        return echoHandler(cmd->array_value[1].string_value);
+    if (cmd->array_value->size() == 2 &&
+        cmd->array_value->at(0)->string_value == "echo") {
+        return echoHandler(cmd->array_value->at(1)->string_value);
     }
-    if (cmd->array_value.size() >= 2 &&
-        cmd->array_value[0].string_value == "get") {
-        return getHandler(cmd->array_value[1].string_value);
+    if (cmd->array_value->size() >= 2 &&
+        cmd->array_value->at(0)->string_value == "get") {
+        return getHandler(cmd->array_value->at(1)->string_value);
     }
-    if (cmd->array_value.size() >= 3 &&
-        cmd->array_value[0].string_value == "set") {
-        return setHandler(cmd->array_value[1].string_value, cmd->array_value[2].string_value);
+    if (cmd->array_value->size() >= 3 &&
+        cmd->array_value->at(0)->string_value == "set") {
+        return setHandler(cmd->array_value->at(1)->string_value, cmd->array_value->at(2)->string_value);
     }
 
     return {};
@@ -195,7 +195,7 @@ void RedisApp::handleClient(int client_fd) {
 
         auto ss = stringstream(msgStr);
         auto msg = parser.parseCmd(ss);
-        auto response = cmdHandler(msg);
+        auto response = cmdHandler(std::move(msg));
         cout << "response: ";
         writeEscapedString(cout, response);
         cout << endl;
