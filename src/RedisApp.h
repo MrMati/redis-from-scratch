@@ -19,13 +19,13 @@
 #include "RespSerializer.h"
 #include "utils.h"
 
-using seconds = long;
+using milliseconds = long;
 
 struct RedisValue {
     string value;
-    seconds expiryTime;
+    milliseconds expiryTime;
 
-    RedisValue(string val, seconds expiry) : value(std::move(val)), expiryTime(expiry) {}
+    RedisValue(string val, milliseconds expiry) : value(std::move(val)), expiryTime(expiry) {}
 };
 
 

@@ -3,9 +3,9 @@
 using namespace std;
 
 
-seconds getPastCurrentTime(seconds sec) {
-    return (std::chrono::time_point_cast<std::chrono::seconds>(chrono::steady_clock::now())
-            + chrono::seconds(sec)).time_since_epoch().count();
+milliseconds getPastCurrentTime(milliseconds ms) {
+    return (std::chrono::time_point_cast<std::chrono::milliseconds>(chrono::steady_clock::now())
+            + chrono::milliseconds(ms)).time_since_epoch().count();
 }
 
 string RedisApp::echoHandler(string &val) {
@@ -32,21 +32,21 @@ string RedisApp::setHandler(unique_ptr<deque<unique_ptr<RespValue>>> args) {
     string optionName;
     if (!args->empty()) optionName = pop(args)->string_value;
 
-    seconds expirySeconds = -1;
+    milliseconds expiryMSeconds = -1;
 
     if (cmpIgnoreCase(optionName, "px")) {
         if(args->empty()) return serialize.bulkError("Missing value for PX");
 
         string expVal = pop(args)->string_value;
-        expirySeconds = stoi(expVal);
+        expiryMSeconds = stoi(expVal);
 
-        if(expirySeconds <= 0) return serialize.bulkError("Expiration time has to be positive");
+        if(expiryMSeconds <= 0) return serialize.bulkError("Expiration time has to be positive");
     }
 
-    seconds expiryTime = -1;
+    milliseconds expiryTime = -1;
 
-    if (expirySeconds > 0) {
-        expiryTime = getPastCurrentTime(expirySeconds);
+    if (expiryMSeconds > 0) {
+        expiryTime = getPastCurrentTime(expiryMSeconds);
     }
 
     if (!dataStore.contains(key)) {
