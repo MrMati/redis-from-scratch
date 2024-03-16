@@ -34,7 +34,7 @@ string RedisApp::setHandler(unique_ptr<deque<unique_ptr<RespValue>>> args) {
 
     seconds expirySeconds = -1;
 
-    if (optionName. == "px") {
+    if (cmpIgnoreCase(optionName, "px")) {
         if(args->empty()) return serialize.bulkError("Missing value for PX");
 
         string expVal = pop(args)->string_value;
@@ -69,19 +69,19 @@ string RedisApp::cmdHandler(unique_ptr<RespValue> cmd) {
 
     auto cmdName = pop(cmd->array_value)->string_value;
 
-    if (cmdName == "ping") {
+    if (cmpIgnoreCase(cmdName, "ping")) {
         return {"+PONG\r\n"};
     }
 
     if (cmd->array_value->empty()) return {};
 
-    if (cmdName == "echo") {
+    if (cmpIgnoreCase(cmdName, "echo")) {
         return echoHandler(cmd->array_value->at(0)->string_value);
     }
-    if (cmdName == "get") {
+    if (cmpIgnoreCase(cmdName, "get")) {
         return getHandler(cmd->array_value->at(0)->string_value);
     }
-    if (cmdName == "set") {
+    if (cmpIgnoreCase(cmdName, "set")) {
         return setHandler(std::move(cmd->array_value));
     }
 
