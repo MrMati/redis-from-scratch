@@ -26,7 +26,7 @@ unique_ptr<RespValue> RespParser::parseArray(stringstream &ss) {
     ss >> elementAmount;
     checkSeparator(ss);
 
-    auto elements = make_unique<vector<unique_ptr<RespValue>>>();
+    auto elements = make_unique<deque<unique_ptr<RespValue>>>();
 
     for (int i = 0; i < elementAmount; i++) {
         auto element = parseCmd(ss);

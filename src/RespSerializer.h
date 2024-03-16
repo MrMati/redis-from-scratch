@@ -13,6 +13,7 @@ public:
 
     string simpleString(const string& str);
     string bulkString(const string& str);
+    string bulkError(const string &str);
 };
 
 

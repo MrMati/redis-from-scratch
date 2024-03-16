@@ -8,7 +8,9 @@ set(SOURCE_FILES src/Server.cpp
         src/RedisApp.cpp
         src/RedisApp.h
         src/RespSerializer.cpp
-        src/RespSerializer.h)
+        src/RespSerializer.h
+        src/utils.h
+        src/utils.cpp)
 
 add_compile_options(-fsanitize=address)
 add_link_options(-fsanitize=address)

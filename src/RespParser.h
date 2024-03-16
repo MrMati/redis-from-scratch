@@ -2,7 +2,7 @@
 #define REDIS_STARTER_CPP_RESPPARSER_H
 
 #include <string>
-#include <vector>
+#include <deque>
 #include <iostream>
 #include <sstream>
 #include <cstring>
@@ -17,26 +17,18 @@ struct RespValue {
         Array
     };
 
-    explicit RespValue() : type(Type::Invalid) {
-        cout << "RespValue created\n";
-    }
+    explicit RespValue() : type(Type::Invalid) {}
 
-    explicit RespValue(Type type, string val) : type(type), string_value(std::move(val)) {
-        cout << "RespValue created\n";
-    }
+    explicit RespValue(Type type, string val)
+            : type(type), string_value(std::move(val)) {}
 
-    explicit RespValue(Type type, unique_ptr<vector<unique_ptr<RespValue>>> vec) : type(type), array_value(std::move(vec)) {
-        cout << "RespValue created\n";
-    }
-
-    ~RespValue() {
-        cout << "RespValue ded\n";
-    }
+    explicit RespValue(Type type, unique_ptr<deque<unique_ptr<RespValue>>> vec)
+            : type(type), array_value(std::move(vec)) {}
 
     Type type;
 
     string string_value;
-    unique_ptr<vector<unique_ptr<RespValue>>> array_value;
+    unique_ptr<deque<unique_ptr<RespValue>>> array_value;
 };
 
 

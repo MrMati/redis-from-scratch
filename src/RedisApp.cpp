@@ -1,98 +1,88 @@
 #include "RedisApp.h"
 
-#include <utility>
-
 using namespace std;
 
-ostream &writeEscapedString(ostream &out, string const &s) {
-    for (auto ch: s) {
-        switch (ch) {
-            case '\'':
-                out << "\\'";
-                break;
 
-            case '\"':
-                out << "\\\"";
-                break;
-
-            case '\?':
-                out << "\\?";
-                break;
-
-            case '\\':
-                out << "\\\\";
-                break;
-
-            case '\a':
-                out << "\\a";
-                break;
-
-            case '\b':
-                out << "\\b";
-                break;
-
-            case '\f':
-                out << "\\f";
-                break;
-
-            case '\n':
-                out << "\\n";
-                break;
-
-            case '\r':
-                out << "\\r";
-                break;
-
-            case '\t':
-                out << "\\t";
-                break;
-
-            case '\v':
-                out << "\\v";
-                break;
-
-            default:
-                out << ch;
-        }
-    }
-
-    return out;
+seconds getPastCurrentTime(seconds sec) {
+    return (std::chrono::time_point_cast<std::chrono::seconds>(chrono::steady_clock::now())
+            + chrono::seconds(sec)).time_since_epoch().count();
 }
-
 
 string RedisApp::echoHandler(string &val) {
     return serialize.bulkString(val);
 }
 
 string RedisApp::getHandler(string &key) {
-    if (dataStore.contains(key))
-        return serialize.bulkString(dataStore[key]);
+    if (dataStore.contains(key)) {
+        auto &redisVal = dataStore.at(key);
+        auto currTime = getPastCurrentTime(0);
+        if(redisVal->expiryTime == -1 || currTime < redisVal->expiryTime) {
+            return serialize.bulkString(redisVal->value);
+        }
+    }
     return serialize.nilString;
 }
 
-string RedisApp::setHandler(string &key, string &value) {
-    dataStore[key] = value;
+string RedisApp::setHandler(unique_ptr<deque<unique_ptr<RespValue>>> args) {
+    auto key = pop(args)->string_value;
+
+    string value;
+    if (!args->empty()) value = pop(args)->string_value;
+
+    string optionName;
+    if (!args->empty()) optionName = pop(args)->string_value;
+
+    seconds expirySeconds = -1;
+
+    if (optionName. == "px") {
+        if(args->empty()) return serialize.bulkError("Missing value for PX");
+
+        string expVal = pop(args)->string_value;
+        expirySeconds = stoi(expVal);
+
+        if(expirySeconds <= 0) return serialize.bulkError("Expiration time has to be positive");
+    }
+
+    seconds expiryTime = -1;
+
+    if (expirySeconds > 0) {
+        expiryTime = getPastCurrentTime(expirySeconds);
+    }
+
+    if (!dataStore.contains(key)) {
+        auto redisVal = make_unique<RedisValue>(value, expiryTime);
+        dataStore[key] = std::move(redisVal);
+
+    } else {
+        dataStore.at(key)->value = value;
+        dataStore.at(key)->expiryTime = expiryTime;
+    }
+
     return serialize.OK;
 }
 
-string RedisApp::cmdHandler(unique_ptr<RespValue> cmd) {
-    if (cmd->type != RespValue::Type::Array) return {};
 
-    if (cmd->array_value->size() == 1 &&
-            cmd->array_value->at(0)->string_value == "ping") {
+string RedisApp::cmdHandler(unique_ptr<RespValue> cmd) {
+    if (cmd->type != RespValue::Type::Array ||
+        cmd->array_value->empty())
+        return {};
+
+    auto cmdName = pop(cmd->array_value)->string_value;
+
+    if (cmdName == "ping") {
         return {"+PONG\r\n"};
     }
-    if (cmd->array_value->size() == 2 &&
-        cmd->array_value->at(0)->string_value == "echo") {
-        return echoHandler(cmd->array_value->at(1)->string_value);
+
+    if (cmd->array_value->empty()) return {};
+
+    if (cmdName == "echo") {
+        return echoHandler(cmd->array_value->at(0)->string_value);
     }
-    if (cmd->array_value->size() >= 2 &&
-        cmd->array_value->at(0)->string_value == "get") {
-        return getHandler(cmd->array_value->at(1)->string_value);
+    if (cmdName == "get") {
+        return getHandler(cmd->array_value->at(0)->string_value);
     }
-    if (cmd->array_value->size() >= 3 &&
-        cmd->array_value->at(0)->string_value == "set") {
-        return setHandler(cmd->array_value->at(1)->string_value, cmd->array_value->at(2)->string_value);
+    if (cmdName == "set") {
+        return setHandler(std::move(cmd->array_value));
     }
 
     return {};

@@ -20,4 +20,14 @@ string RespSerializer::bulkString(const string &str) {
     return ss.str();
 }
 
+string RespSerializer::bulkError(const string &str) {
+    stringstream ss;
+    ss << "!";
+    ss << str.size();
+    ss << "\r\n";
+    ss << str;
+    ss << "\r\n";
+
+    return ss.str();
+}
 

@@ -10,20 +10,24 @@
 #include <arpa/inet.h>
 #include <poll.h>
 #include <utility>
-#include <vector>
+#include <deque>
 #include <thread>
 #include <map>
+#include <chrono>
 
 #include "RespParser.h"
 #include "RespSerializer.h"
+#include "utils.h"
 
+using seconds = long;
 
 struct RedisValue {
     string value;
-    time_t expiryTime;
+    seconds expiryTime;
 
-    RedisValue(string val, time_t expiry) : value(std::move(val)), expiryTime(expiry) {}
+    RedisValue(string val, seconds expiry) : value(std::move(val)), expiryTime(expiry) {}
 };
+
 
 
 class RedisApp {
@@ -35,14 +39,14 @@ public:
 private:
     RespParser parser{};
     RespSerializer serialize{};
-    map<string, string> dataStore{};
+    map<string, unique_ptr<RedisValue>> dataStore{};
 
     int createListener();
     void handleClient(int client_fd);
 
     string echoHandler(string &val);
     string getHandler(string &key);
-    string setHandler(string &key, string &value);
+    string setHandler(unique_ptr<deque<unique_ptr<RespValue>>> args);
 };
 
 
